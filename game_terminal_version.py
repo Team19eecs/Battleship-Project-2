@@ -8,47 +8,41 @@ Output: A game of battleship played in the terminal.
 Authors: Brynn Hare, Micah Borghese, Katelyn Accola, Nora Manolescu, and Kyle Johnson
 Creation date: 9/4/2024
 '''
+import random
 
 player1 = 1  # global variable to represent player 1
 player2 = 2  # global variable to represent player 2
 
 class Board:
-
     def __init__(self, player_num):
-        self.player_num = player_num  # Assign each player number a corresponding board
-        self.board = [["~" for _ in range(10)] for _ in range(10)]  # upon creation, game board should be filled with empty spaces only
+        self.player_num = player_num  
+        self.board = [["~" for _ in range(10)] for _ in range(10)]
 
     def symbol_key(self):
-        # print out the key so that the reader can understand the symbols
         print("Symbol Key for Battleship: ")
         print(f'\tShip: O\n\tShip hit: X\n\tShip sunk: *\n\tOpen spot: ~\n\tMissfire: .\n')
 
     def display_board(self):
-        # Display the current user's board
         print("Here is your board: ")
-        print("  " + " ".join(chr(ord('A') + i) for i in range(10)))  # print out letters as column headers
+        print("  " + " ".join(chr(ord('A') + i) for i in range(10)))
         for i, row in enumerate(self.board):
             formatted_row = ["O" if isinstance(cell, int) else cell for cell in row]
             print(f"{i + 1:2} " + " ".join(formatted_row))
 
     def display_opponent_board(self):
-        # printing out your opponent's board, not displaying their unhit ships
         print("Here is your opponent's board: ")
-        print("  " + " ".join(chr(ord('A') + i) for i in range(10)))  # Column labels A-J
+        print("  " + " ".join(chr(ord('A') + i) for i in range(10)))
         for i, row in enumerate(self.board):
             display_row = ['~' if isinstance(cell, int) else cell for cell in row]
             print(f"{i + 1:2} " + " ".join(display_row))
 
     def is_empty(self, row, column):
-        # Check if spot is free for use in ship placement
         return self.board[row][column] == "~"
 
     def is_within_bounds(self, row, column):
-        # Check if spot is within the 10x10 grid
         return 0 <= row < 10 and 0 <= column < 10
 
     def is_valid(self, row, column):
-        # Check if spot is within range and is empty
         return self.is_within_bounds(row, column) and self.is_empty(row, column)
 
     def place_ships(self, ship):
@@ -86,7 +80,7 @@ class Board:
                     for i in range(ship[1]):
                         self.board[row + i][col] = ship[1]
                 
-                break  # Exit the loop if ship placed successfully
+                break
 
             except ValueError as e:
                 print(e)
@@ -129,18 +123,14 @@ class Board:
                     return False
         return True
 
-# Rest of the classes (Ships, SwitchPlayers, Game) remain the same except any calls to the modified Board methods
-
-
-class Ships: 
-    #class that handles 1b; assigning the correct number of ships to a user
+class Ships:
     def __init__(self, player_num):
-        self.player_num = player_num #this will be put in by us each time they switch, to reprsent player 1 or 2
-        self.num_ships = 0 #this is provided by the player later (must be numbers 1-5 inclusively)
-        self.ship_types = [] #empty list to hold the sizes of the ships
-        self.remaining_units = [] #keep track of how many units of a ship have been hit to know when it is sunk
+        self.player_num = player_num 
+        self.num_ships = 0 
+        self.ship_types = [] 
+        self.remaining_units = [] 
 
-    def choose_ships(self): #the player must select the number of ships they want to have
+    def choose_ships(self): 
         while True:    
             try:  
                 num_ships = int(input("Choose the number of ships for your board (1-5): "))
@@ -148,71 +138,49 @@ class Ships:
                 break
             except: 
                 print("Invalid number of ships.")
-        while (self.num_ships < 1) or (self.num_ships > 5): #checking for invalid ship values
+        while (self.num_ships < 1) or (self.num_ships > 5): 
             try: 
-                new_num = int(input("Invalid number of ships. Select a new number: ")) #prompt for another number ***THIS CAN BE CHANGED JUST AN INITIAL PHASE***
-                self.num_ships = new_num #assign the new number to be the number of ships
+                new_num = int(input("Invalid number of ships. Select a new number: ")) 
+                self.num_ships = new_num 
             except: 
                 self.num_ships = 0
-        for i in range(num_ships): # keep track of how many unsunk units for each ship
-            self.remaining_units.append(i+1)
+        for i in range(num_ships):
+            self.remaining_units.append(i + 1)
 
-    def load_types(self): #this forms the list with the sizes of the ships
-        i = 1 #initializing for the while loop
-        while i < (self.num_ships + 1): #while the current ship number is less than one extra than the number of ships chosen
-            self.ship_types.append([1, i]) #append to the list. [1, 1] represents 1 x 1. [1, 2] represents 1 x 2...etc.
-            i += 1 #increase the while loop
-
+    def load_types(self):
+        i = 1 
+        while i < (self.num_ships + 1): 
+            self.ship_types.append([1, i]) 
+            i += 1 
 
 class SwitchPlayers:
-    # Can be used any time to switch players
-    # The main purpose of this class is to give the players a warning that a turn will switch 
-    # This prevents the opposing player's board from displaying, spoiling the secrecy of the game
     def __init__(self):
-        # Initialize player by starting with player 1 
         self.player_num = 1
     
-    # To change players
     def change(self):
         if self.player_num == 1: 
-            self.player_num = 2 # If currently player 1, switch to player 2
+            self.player_num = 2 
         else: 
-            self.player_num = 1 # If currently player 2, switch to player 1 
+            self.player_num = 1 
             
-    # To begin player's turn 
     def begin_turn(self):
-        # Begin player's turn and wait until there is an input
         print("Begin Player", self.player_num,"'s Turn (Press Enter)") 
-        input() # Requires user to enter to confirm start of a turn 
+        input() 
         
-    # To end player's turn 
     def end_turn(self):
-        # Display turn is ending for the player and wait until there is an input
         print("End Player", self.player_num,"'s Turn (Press Enter)") 
-        input() # Requires user to enter to confirm end of their turn 
-
-        # Switch players after confirming turn is over 
+        input()
         self.change() 
 
-# Check if coordinate is valid 
 def is_valid_coordinate(coordinate):
-    # Check if coordinate has correct number of characters 
     if len(coordinate) < 2 or len(coordinate) > 3:
         return False
-
-    # Store coordinate row and column 
     row = coordinate[0].upper()
     col = coordinate[1:]
-
-    # Check if the row is a letter between A and J (for a 10x10 grid)
     if row < 'A' or row > 'J':
         return False
-
-    # Check if the column is a number between 1 and 10
     if not col.isdigit() or not (1 <= int(col) <= 10):
         return False
-
-    # Otherwise, coordinate is valid 
     return True
 
 class Game:
@@ -221,66 +189,213 @@ class Game:
         self.ships = ships
         self.currentplayer = currentplayer
 
-    # Method where player sets up their board
     def game_setup(self, player): 
-        # Prompt current player to begin first turn 
         self.currentplayer.begin_turn() 
-
-        # Print the key & symbols for the games
         self.boards[player].symbol_key()
-
-        # Prompt current player to select number of ships (1-5)
         self.ships[player].choose_ships() 
-        self.ships[player].load_types() # Create the list to store current player's ships
-        
-        # Display the blank board
+        self.ships[player].load_types() 
         self.boards[player].display_board() 
-
-        # Place each of the player's ships 
-        for ship in self.ships[player].ship_types: # Iterate over list of ships to place each ship the player has
-            self.boards[player].place_ships(ship) # Make the board class write in the ship to the board as its placed
-            self.boards[player].display_board() # Display what the updated board looks like after a ship is placed 
-        
-        # Confirm the end of current player's setup turn and make opponent the new current player
+        for ship in self.ships[player].ship_types:
+            self.boards[player].place_ships(ship)
+            self.boards[player].display_board() 
         self.currentplayer.end_turn() 
 
+def display_title_screen():
+    print("###############################")
+    print("# Welcome to Battleship Game! #")
+    print("###############################\n")
+    print("Choose a game mode:")
+    print("1. Play against another Player")
+    print("2. Play against AI\n")
+    while True:
+        try:
+            choice = int(input("Enter your choice (1 or 2): "))
+            if choice not in [1, 2]:
+                raise ValueError
+            break
+        except ValueError:
+            print("Invalid input. Please enter 1 or 2.")
+    return choice
+
+def choose_ai_difficulty():
+    print("\nChoose AI Difficulty Level:")
+    print("1. Easy")
+    print("2. Medium")
+    print("3. Hard\n")
+    while True:
+        try:
+            difficulty = int(input("Enter your choice (1, 2, or 3): "))
+            if difficulty not in [1, 2, 3]:
+                raise ValueError
+            break
+        except ValueError:
+            print("Invalid input. Please enter 1, 2, or 3.")
+    return difficulty
+
+def generate_random_coordinate():
+    row = random.randint(0, 9)
+    col = random.randint(0, 9)
+    return chr(ord('A') + col) + str(row + 1)
+
+def random_orientation():
+    return random.choice(['h', 'v'])
+
+def ai_place_ships(board, ships):
+    for ship in ships.ship_types:
+        placed = False
+        while not placed:
+            orientation = random_orientation()
+            start_coordinate = generate_random_coordinate()
+            if len(start_coordinate) == 3 and start_coordinate[1:] == "10":
+                col = ord(start_coordinate[0]) - ord('A')
+                row = 9
+            else:
+                col = ord(start_coordinate[0]) - ord('A')
+                row = int(start_coordinate[1]) - 1
+            try:
+                if orientation == 'h':
+                    if col + ship[1] > 10 or any(not board.is_empty(row, col + i) for i in range(ship[1])):
+                        continue
+                    for i in range(ship[1]):
+                        board.board[row][col + i] = ship[1]
+                else:
+                    if row + ship[1] > 10 or any(not board.is_empty(row + i, col) for i in range(ship[1])):
+                        continue
+                    for i in range(ship[1]):
+                        board.board[row + i][col] = ship[1]
+                placed = True
+            except Exception:
+                continue
+
+def ai_fire_easy(board, targeted_coordinates):
+    """
+    AI fires at a random location that hasn't been targeted yet.
+    """
+    while True:
+        # Generate a random coordinate
+        col = random.randint(0, 9)  # Columns range from 0 (A) to 9 (J)
+        row = random.randint(0, 9)  # Rows range from 0 (1) to 9 (10)
+        
+        # Check if this coordinate has been targeted before
+        if (row, col) not in targeted_coordinates:
+            targeted_coordinates.add((row, col))  # Mark this coordinate as targeted
+            return chr(ord('A') + col) + str(row + 1)  # Return the coordinate in proper format (e.g., 'A5')
+
+        
+def ai_fire_medium(board, previous_hits, last_hit=None):
+    """AI fires randomly until it hits, then fires in orthogonal directions around the hit until the ship is sunk."""
+    if last_hit:
+        row, col = last_hit
+        directions = [(row - 1, col), (row + 1, col), (row, col - 1), (row, col + 1)]  # Up, Down, Left, Right
+        
+        random.shuffle(directions)  # Randomize the direction choice
+        
+        for new_row, new_col in directions:
+            if board.is_within_bounds(new_row, new_col) and board.board[new_row][new_col] == '~':
+                return chr(ord('A') + new_col) + str(new_row + 1)
+    
+    # If there was no last hit or no adjacent cells available, fire randomly
+    return ai_fire_easy(board)
+
+def ai_fire_hard(board):
+    """
+    AI fires and always hits a ship's segment on each turn.
+    It systematically looks for any part of a ship and targets it directly.
+    """
+    for row in range(10):
+        for col in range(10):
+            # Check if the cell contains a part of a ship (integer value) that hasn't been hit
+            if isinstance(board.board[row][col], int):
+                return chr(ord('A') + col) + str(row + 1)  # Convert to coordinate and return
+    return None  # This should never happen as long as there are ship parts left to hit
+
 if __name__ == '__main__':
-    boards = [Board(player1), Board(player2)] 
+    game_mode = display_title_screen()
+    boards = [Board(player1), Board(player2)]
     ships = [Ships(player1), Ships(player2)]
     currentplayer = SwitchPlayers()
     startGame = Game(boards, ships, currentplayer)
-
-    startGame.game_setup(0)
-    startGame.game_setup(1)
-
+    
+    if game_mode == 1:
+        startGame.game_setup(0)
+        startGame.game_setup(1)
+    else:
+        ai_difficulty = choose_ai_difficulty()
+        startGame.game_setup(0)
+        print("\nThe AI is setting up its board...")
+        ships[1].choose_ships()
+        ships[1].load_types()
+        ai_place_ships(boards[1], ships[1])
+        currentplayer.end_turn()
+    
     gameOver = False
+    last_hit = None
+    previous_hits = []
+    ai_targeted_coordinates = set()  # Set to track the coordinates the Easy AI has targeted
+    
     while not gameOver:
         player_continue = True
         currentplayer.begin_turn()
         currentboard = currentplayer.player_num - 1
         opponentboard = 1 - currentboard
-        boards[currentboard].display_board()
+        
+        if game_mode == 1 or (game_mode == 2 and currentplayer.player_num == 1):
+            boards[currentboard].display_board()
+            boards[opponentboard].display_board()
 
-        while player_continue:
-            boards[opponentboard].display_opponent_board()
-            while True:
-                guess_coordinate = input("Input the coordinate you want to fire at (e.g., A5 or A10): ").upper()
-                if is_valid_coordinate(guess_coordinate):
-                    break
-                else:
-                    print("Invalid coordinate! Please enter a valid coordinate (e.g., A5 or A10).")
-
-            fire = boards[opponentboard].fire(guess_coordinate, ships[opponentboard])
-            if fire == 0:
-                print("MISS")
+            while player_continue:
                 boards[opponentboard].display_opponent_board()
-                player_continue = False
+                while True:
+                    guess_coordinate = input("Input the coordinate you want to fire at (e.g., A5 or A10): ").upper()
+                    if is_valid_coordinate(guess_coordinate):
+                        break
+                    else:
+                        print("Invalid coordinate! Please enter a valid coordinate (e.g., A5 or A10).")
+                
+                fire = boards[opponentboard].fire(guess_coordinate, ships[opponentboard])
+                if fire == 0:
+                    print("MISS")
+                    boards[opponentboard].display_opponent_board()
+                    player_continue = False
+                elif fire == 1:
+                    print("HIT")
+                    player_continue = False
+                elif fire == 2:
+                    print("SUNK BATTLESHIP")
+                    if boards[opponentboard].game_over():
+                        print(f"GAME OVER: Player {currentplayer.player_num} wins!")
+                        gameOver = True
+                        break
+                    player_continue = False
                 currentplayer.end_turn()
+
+        else:
+            if ai_difficulty == 1:
+                ai_coordinate = ai_fire_easy(boards[0], ai_targeted_coordinates)  # Pass the targeted coordinates set
+            elif ai_difficulty == 2:
+                ai_coordinate = ai_fire_medium(boards[0], previous_hits, last_hit)
+            elif ai_difficulty == 3:
+                ai_coordinate = ai_fire_hard(boards[0])
+            
+            print(f"AI fires at {ai_coordinate}")
+            fire = boards[0].fire(ai_coordinate, ships[0])
+            
+            if fire == 0:
+                print("AI missed!")
+                last_hit = None
+                player_continue = False  # Ensures the AI turn ends
+                currentplayer.end_turn()  # Properly switch back to Player 1
             elif fire == 1:
-                print("HIT")
+                print("AI hit your ship!")
+                last_hit = (int(ai_coordinate[1:]) - 1, ord(ai_coordinate[0]) - ord('A'))
+                previous_hits.append(last_hit)
+                player_continue = False  # End the AI's turn
+                currentplayer.end_turn()  # Switch back to Player 1
             elif fire == 2:
-                print("SUNK BATTLESHIP")
-                if boards[opponentboard].game_over():
-                    print(f"GAME OVER: Player {currentplayer.player_num} wins!")
+                print("AI sunk your ship!")
+                if boards[0].game_over():
+                    print("GAME OVER: AI wins!")
                     gameOver = True
                     break
+                player_continue = False  # End the AI's turn
+                currentplayer.end_turn()  # Switch back to Player 1
