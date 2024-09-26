@@ -8,6 +8,7 @@ Output: A game of battleship played in the terminal.
 Authors: Brynn Hare, Micah Borghese, Katelyn Accola, Nora Manolescu, and Kyle Johnson
 Creation date: 9/4/2024
 '''
+
 import random
 
 player1 = 1  # global variable to represent player 1
@@ -281,22 +282,6 @@ def ai_fire_easy(board, targeted_coordinates):
             targeted_coordinates.add((row, col))  # Mark this coordinate as targeted
             return chr(ord('A') + col) + str(row + 1)  # Return the coordinate in proper format (e.g., 'A5')
 
-        
-def ai_fire_medium(board, previous_hits, last_hit=None):
-    """AI fires randomly until it hits, then fires in orthogonal directions around the hit until the ship is sunk."""
-    if last_hit:
-        row, col = last_hit
-        directions = [(row - 1, col), (row + 1, col), (row, col - 1), (row, col + 1)]  # Up, Down, Left, Right
-        
-        random.shuffle(directions)  # Randomize the direction choice
-        
-        for new_row, new_col in directions:
-            if board.is_within_bounds(new_row, new_col) and board.board[new_row][new_col] == '~':
-                return chr(ord('A') + new_col) + str(new_row + 1)
-    
-    # If there was no last hit or no adjacent cells available, fire randomly
-    return ai_fire_easy(board)
-
 def ai_fire_hard(board):
     """
     AI fires and always hits a ship's segment on each turn.
@@ -308,6 +293,84 @@ def ai_fire_hard(board):
             if isinstance(board.board[row][col], int):
                 return chr(ord('A') + col) + str(row + 1)  # Convert to coordinate and return
     return None  # This should never happen as long as there are ship parts left to hit
+
+def coordinate_to_indices(coordinate):
+    if len(coordinate) == 3 and coordinate[1:] == "10":
+        col = ord(coordinate[0]) - ord('A')
+        row = 9
+    else:
+        col = ord(coordinate[0]) - ord('A')
+        row = int(coordinate[1]) - 1
+    return row, col
+
+def ai_fire_medium(board, ai_state, ai_targeted_coordinates):
+    DIRECTIONS = {
+        'up': (-1, 0),
+        'down': (1, 0),
+        'left': (0, -1),
+        'right': (0, 1)
+    }
+    if not ai_state['target_mode']:
+        # Fire randomly at untargeted coordinates
+        while True:
+            col = random.randint(0, 9)
+            row = random.randint(0, 9)
+            if (row, col) not in ai_targeted_coordinates:
+                ai_targeted_coordinates.add((row, col))
+                coordinate = chr(ord('A') + col) + str(row + 1)
+                return coordinate
+    else:
+        # In target mode, attempt to sink the ship
+        # Get initial_hit coordinate
+        initial_row, initial_col = ai_state['initial_hit']
+        # If direction is None, pick a new direction
+        if ai_state['direction'] is None:
+            possible_directions = ['up', 'down', 'left', 'right']
+            directions_tried = ai_state['directions_tried']
+            remaining_directions = [d for d in possible_directions if d not in directions_tried]
+            if not remaining_directions:
+                # All directions tried, reset target mode
+                ai_state['target_mode'] = False
+                ai_state['last_hit'] = None
+                ai_state['directions_tried'] = []
+                ai_state['direction'] = None
+                ai_state['steps_in_current_direction'] = 0
+                ai_state['initial_hit'] = None
+                # Go back to random firing
+                return ai_fire_medium(board, ai_state, ai_targeted_coordinates)
+            else:
+                # Choose a new direction
+                ai_state['direction'] = random.choice(remaining_directions)
+                ai_state['directions_tried'].append(ai_state['direction'])
+                ai_state['steps_in_current_direction'] = 1
+        else:
+            # Continue in the same direction
+            ai_state['steps_in_current_direction'] += 1
+
+        # Calculate next coordinate
+        dir_row_delta, dir_col_delta = DIRECTIONS[ai_state['direction']]
+        steps = ai_state['steps_in_current_direction']
+        new_row = initial_row + dir_row_delta * steps
+        new_col = initial_col + dir_col_delta * steps
+
+        # Check bounds and if coordinate has been targeted
+        if 0 <= new_row < 10 and 0 <= new_col < 10:
+            if (new_row, new_col) not in ai_targeted_coordinates:
+                ai_targeted_coordinates.add((new_row, new_col))
+                coordinate = chr(ord('A') + new_col) + str(new_row + 1)
+                return coordinate
+            else:
+                # Already targeted, need to try a new direction
+                ai_state['direction'] = None
+                ai_state['steps_in_current_direction'] = 0
+                # Continue in target mode
+                return ai_fire_medium(board, ai_state, ai_targeted_coordinates)
+        else:
+            # Out of bounds, need to try a new direction
+            ai_state['direction'] = None
+            ai_state['steps_in_current_direction'] = 0
+            # Continue in target mode
+            return ai_fire_medium(board, ai_state, ai_targeted_coordinates)
 
 if __name__ == '__main__':
     game_mode = display_title_screen()
@@ -331,7 +394,16 @@ if __name__ == '__main__':
     gameOver = False
     last_hit = None
     previous_hits = []
-    ai_targeted_coordinates = set()  # Set to track the coordinates the Easy AI has targeted
+    ai_targeted_coordinates = set()  # Set to track the coordinates the AI has targeted
+    # Initialize AI state for medium difficulty
+    ai_state = {
+        'last_hit': None,
+        'target_mode': False,
+        'directions_tried': [],
+        'direction': None,
+        'steps_in_current_direction': 0,
+        'initial_hit': None
+    }
     
     while not gameOver:
         player_continue = True
@@ -373,22 +445,38 @@ if __name__ == '__main__':
             if ai_difficulty == 1:
                 ai_coordinate = ai_fire_easy(boards[0], ai_targeted_coordinates)  # Pass the targeted coordinates set
             elif ai_difficulty == 2:
-                ai_coordinate = ai_fire_medium(boards[0], previous_hits, last_hit)
+                ai_coordinate = ai_fire_medium(boards[0], ai_state, ai_targeted_coordinates)
             elif ai_difficulty == 3:
                 ai_coordinate = ai_fire_hard(boards[0])
             
             print(f"AI fires at {ai_coordinate}")
             fire = boards[0].fire(ai_coordinate, ships[0])
+            row, col = coordinate_to_indices(ai_coordinate)
             
             if fire == 0:
                 print("AI missed!")
-                last_hit = None
+                # If in target mode, reset direction but not target mode
+                if ai_state['target_mode']:
+                    ai_state['direction'] = None
+                    ai_state['steps_in_current_direction'] = 0
+                else:
+                    ai_state['last_hit'] = None
+                    ai_state['target_mode'] = False
                 player_continue = False  # Ensures the AI turn ends
                 currentplayer.end_turn()  # Properly switch back to Player 1
             elif fire == 1:
                 print("AI hit your ship!")
-                last_hit = (int(ai_coordinate[1:]) - 1, ord(ai_coordinate[0]) - ord('A'))
-                previous_hits.append(last_hit)
+                if not ai_state['target_mode']:
+                    # First hit, enter target mode
+                    ai_state['target_mode'] = True
+                    ai_state['last_hit'] = (row, col)
+                    ai_state['initial_hit'] = (row, col)
+                    ai_state['directions_tried'] = []
+                    ai_state['direction'] = None
+                    ai_state['steps_in_current_direction'] = 0
+                else:
+                    # Continue in target mode, update last_hit
+                    ai_state['last_hit'] = (row, col)
                 player_continue = False  # End the AI's turn
                 currentplayer.end_turn()  # Switch back to Player 1
             elif fire == 2:
@@ -397,5 +485,13 @@ if __name__ == '__main__':
                     print("GAME OVER: AI wins!")
                     gameOver = True
                     break
+                # Reset AI state after sinking a ship
+                ai_state['target_mode'] = False
+                ai_state['last_hit'] = None
+                ai_state['initial_hit'] = None
+                ai_state['directions_tried'] = []
+                ai_state['direction'] = None
+                ai_state['steps_in_current_direction'] = 0
                 player_continue = False  # End the AI's turn
                 currentplayer.end_turn()  # Switch back to Player 1
+
