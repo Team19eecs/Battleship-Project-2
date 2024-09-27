@@ -116,6 +116,17 @@ class Board:
         except Exception:
             print("Error with the coordinate. Please try again.")
             return 0
+        
+    def perform_airstrike(self, row):
+        hits = 0
+        for col in range(10):
+            if isinstance(self.board[row][col], int):
+                self.board[row][col] = "X"
+                hits += 1
+            elif self.board[row][col] == "~":
+                self.board[row][col] = "."
+        return hits
+
 
     def game_over(self):
         for rows in self.board:
@@ -189,6 +200,8 @@ class Game:
         self.boards = boards
         self.ships = ships
         self.currentplayer = currentplayer
+        self.player_hits = [0, 0]  # Track consecutive hits for each player
+
 
     def game_setup(self, player): 
         self.currentplayer.begin_turn() 
@@ -200,6 +213,74 @@ class Game:
             self.boards[player].place_ships(ship)
             self.boards[player].display_board() 
         self.currentplayer.end_turn() 
+        
+    def check_airstrike(self, player):
+        if self.player_hits[player] >= 3:
+            print("You have earned an airstrike! Choose a row (1-10) to fire at.")
+            while True:
+                try:
+                    row = int(input("Enter row number (1-10) for airstrike: ")) - 1
+                    if row < 0 or row > 9:
+                        raise ValueError("Row must be between 1 and 10.")
+                    break
+                except ValueError as e:
+                    print(e)
+                    continue
+            
+            # Perform the airstrike
+            hits = self.boards[1 - player].perform_airstrike(row)
+            print(f"Airstrike hit {hits} times on row {row + 1}.")
+            self.boards[1 - player].display_opponent_board()
+            
+            # Check if the game is over after the airstrike
+            if self.boards[1 - player].game_over():
+                print(f"GAME OVER: Player {player + 1} wins!")
+                return True  # Return True to indicate game over
+
+            # Reset the hit counter after the airstrike
+            self.player_hits[player] = 0  
+        
+        return False  # Return False to indicate the game continues
+
+            
+    def take_turn(self, player):
+        player_continue = True
+        opponent = 1 - player
+        self.boards[opponent].display_opponent_board()
+        
+        while player_continue:
+            while True:
+                guess_coordinate = input("Input the coordinate you want to fire at (e.g., A5 or A10): ").upper()
+                if is_valid_coordinate(guess_coordinate):
+                    break
+                else:
+                    print("Invalid coordinate! Please enter a valid coordinate (e.g., A5 or A10).")
+
+            fire = self.boards[opponent].fire(guess_coordinate, self.ships[opponent])
+            
+            if fire == 0:
+                print("MISS")
+                # self.player_hits[player] = 0  # Reset the hit counter
+                player_continue = False
+            elif fire == 1:
+                print("HIT")
+                self.player_hits[player] += 1
+                if self.check_airstrike(player):  # Check for airstrike and game over
+                    return True  # End the game if an airstrike results in a win
+                player_continue = False
+            elif fire == 2:
+                print("SUNK BATTLESHIP")
+                self.player_hits[player] += 1
+                if self.check_airstrike(player):  # Check for airstrike and game over
+                    return True  # End the game if an airstrike results in a win
+                if self.boards[opponent].game_over():
+                    print(f"GAME OVER: Player {player + 1} wins!")
+                    return True
+                player_continue = False
+
+        return False
+
+
 
 def display_title_screen():
     print("###############################")
@@ -373,24 +454,33 @@ def ai_fire_medium(board, ai_state, ai_targeted_coordinates):
             return ai_fire_medium(board, ai_state, ai_targeted_coordinates)
 
 if __name__ == '__main__':
+    # Display the title screen and choose the game mode
     game_mode = display_title_screen()
+    
+    # Initialize the boards, ships, and player switching mechanism
     boards = [Board(player1), Board(player2)]
     ships = [Ships(player1), Ships(player2)]
     currentplayer = SwitchPlayers()
-    startGame = Game(boards, ships, currentplayer)
     
+    # Create the main Game instance
+    startGame = Game(boards, ships, currentplayer)
+
+    # Setup phase for player vs player or player vs AI
     if game_mode == 1:
+        # Player vs Player setup
         startGame.game_setup(0)
         startGame.game_setup(1)
     else:
+        # Player vs AI setup
         ai_difficulty = choose_ai_difficulty()
-        startGame.game_setup(0)
+        startGame.game_setup(0)  # Setup for the human player
         print("\nThe AI is setting up its board...")
         ships[1].choose_ships()
         ships[1].load_types()
-        ai_place_ships(boards[1], ships[1])
+        ai_place_ships(boards[1], ships[1])  # AI sets up its board
         currentplayer.end_turn()
     
+    # Game loop
     gameOver = False
     last_hit = None
     previous_hits = []
@@ -408,66 +498,45 @@ if __name__ == '__main__':
     while not gameOver:
         player_continue = True
         currentplayer.begin_turn()
-        currentboard = currentplayer.player_num - 1
-        opponentboard = 1 - currentboard
+        current_board_index = currentplayer.player_num - 1
+        opponent_board_index = 1 - current_board_index
         
         if game_mode == 1 or (game_mode == 2 and currentplayer.player_num == 1):
-            boards[currentboard].display_board()
-            boards[opponentboard].display_board()
+            # Player's turn (Player vs Player or Player vs AI with human playing)
+            boards[current_board_index].display_board()
+            boards[opponent_board_index].display_board()
 
-            while player_continue:
-                boards[opponentboard].display_opponent_board()
-                while True:
-                    guess_coordinate = input("Input the coordinate you want to fire at (e.g., A5 or A10): ").upper()
-                    if is_valid_coordinate(guess_coordinate):
-                        break
-                    else:
-                        print("Invalid coordinate! Please enter a valid coordinate (e.g., A5 or A10).")
-                
-                fire = boards[opponentboard].fire(guess_coordinate, ships[opponentboard])
-                if fire == 0:
-                    print("MISS")
-                    boards[opponentboard].display_opponent_board()
-                    player_continue = False
-                elif fire == 1:
-                    print("HIT")
-                    player_continue = False
-                elif fire == 2:
-                    print("SUNK BATTLESHIP")
-                    if boards[opponentboard].game_over():
-                        print(f"GAME OVER: Player {currentplayer.player_num} wins!")
-                        gameOver = True
-                        break
-                    player_continue = False
-                currentplayer.end_turn()
+            # Use the Game class's method to handle the turn
+            gameOver = startGame.take_turn(current_board_index)
+            if gameOver:
+                break
+            currentplayer.end_turn()
 
         else:
+            # AI's turn
             if ai_difficulty == 1:
                 ai_coordinate = ai_fire_easy(boards[0], ai_targeted_coordinates)  # Pass the targeted coordinates set
             elif ai_difficulty == 2:
                 ai_coordinate = ai_fire_medium(boards[0], ai_state, ai_targeted_coordinates)
             elif ai_difficulty == 3:
                 ai_coordinate = ai_fire_hard(boards[0])
-            
+
             print(f"AI fires at {ai_coordinate}")
-            fire = boards[0].fire(ai_coordinate, ships[0])
+            fire_result = boards[0].fire(ai_coordinate, ships[0])
             row, col = coordinate_to_indices(ai_coordinate)
-            
-            if fire == 0:
+
+            if fire_result == 0:
                 print("AI missed!")
-                # If in target mode, reset direction but not target mode
                 if ai_state['target_mode']:
                     ai_state['direction'] = None
                     ai_state['steps_in_current_direction'] = 0
                 else:
                     ai_state['last_hit'] = None
                     ai_state['target_mode'] = False
-                player_continue = False  # Ensures the AI turn ends
-                currentplayer.end_turn()  # Properly switch back to Player 1
-            elif fire == 1:
+                currentplayer.end_turn()
+            elif fire_result == 1:
                 print("AI hit your ship!")
                 if not ai_state['target_mode']:
-                    # First hit, enter target mode
                     ai_state['target_mode'] = True
                     ai_state['last_hit'] = (row, col)
                     ai_state['initial_hit'] = (row, col)
@@ -475,23 +544,23 @@ if __name__ == '__main__':
                     ai_state['direction'] = None
                     ai_state['steps_in_current_direction'] = 0
                 else:
-                    # Continue in target mode, update last_hit
                     ai_state['last_hit'] = (row, col)
-                player_continue = False  # End the AI's turn
-                currentplayer.end_turn()  # Switch back to Player 1
-            elif fire == 2:
-                print("AI sunk your ship!")
+                # Check if the AI has won after a hit
                 if boards[0].game_over():
                     print("GAME OVER: AI wins!")
                     gameOver = True
                     break
-                # Reset AI state after sinking a ship
+                currentplayer.end_turn()
+            elif fire_result == 2:
+                print("AI sunk your ship!")
+                if boards[0].game_over():
+                    print("GAME OVER: AI wins!")
+                    gameOver = True
+                    break  # Ensure game loop exits when AI wins
                 ai_state['target_mode'] = False
                 ai_state['last_hit'] = None
                 ai_state['initial_hit'] = None
                 ai_state['directions_tried'] = []
                 ai_state['direction'] = None
                 ai_state['steps_in_current_direction'] = 0
-                player_continue = False  # End the AI's turn
-                currentplayer.end_turn()  # Switch back to Player 1
-
+                currentplayer.end_turn()
