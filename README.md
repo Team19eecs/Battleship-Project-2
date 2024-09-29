@@ -1,7 +1,9 @@
 **System Requirements**
 
 Recommended Compiler: Visual Studio Code
+
 Programming Language: Python 3
+
 Required Libraries: No external libraries are evident from the snippet; only standard Python libraries (random).
 
 **How to Run**
